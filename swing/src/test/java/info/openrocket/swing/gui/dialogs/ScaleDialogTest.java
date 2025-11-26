@@ -11,6 +11,7 @@ import info.openrocket.core.plugin.PluginModule;
 import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.swing.ServicesForTesting;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -221,17 +222,17 @@ public class ScaleDialogTest {
 
         scaleMethod.invoke(dialogInstance, fins, multiplier, false);
 
-        Coordinate[] scaledPoints = fins.getFinPoints();
+        CoordinateIF[] scaledPoints = fins.getFinPoints();
 
-        assertEquals(0.0, scaledPoints[0].x, 0.001);
-        assertEquals(0.0, scaledPoints[0].y, 0.001);
+        assertEquals(0.0, scaledPoints[0].getX(), 0.001);
+        assertEquals(0.0, scaledPoints[0].getY(), 0.001);
 
         // 0.5 * 2.0 = 1.0 (which is < 2.5, so it won't clamp)
-        assertEquals(1.0, scaledPoints[1].x, 0.001);
-        assertEquals(0.0, scaledPoints[1].y, 0.001);
+        assertEquals(1.0, scaledPoints[1].getX(), 0.001);
+        assertEquals(0.0, scaledPoints[1].getY(), 0.001);
 
-        assertEquals(0.0, scaledPoints[2].x, 0.001);
-        assertEquals(1.0, scaledPoints[2].y, 0.001);
+        assertEquals(0.0, scaledPoints[2].getX(), 0.001);
+        assertEquals(1.0, scaledPoints[2].getY(), 0.001);
     }
 
     // ==========================================
