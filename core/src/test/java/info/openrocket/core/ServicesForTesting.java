@@ -42,14 +42,18 @@ public class ServicesForTesting extends AbstractModule {
 			if (oldTranslator != null) {
 				return oldTranslator;
 			}
-			
-			
-			Locale.setDefault(Locale.US);
+
+			boolean bogusLanguage = Locale.getDefault().getLanguage().equals("xx");
+
+			// Reset to US locale if using actual language
+			if (!bogusLanguage) {
+				Locale.setDefault(Locale.US);
+			}
 			
 			// Setup the translator
 			Translator newTranslator;
 			newTranslator = new ResourceBundleTranslator("l10n.messages");
-			if (Locale.getDefault().getLanguage().equals("xx")) {
+			if (bogusLanguage) {
 				newTranslator = new DebugTranslator(newTranslator);
 			}
 			
@@ -98,6 +102,9 @@ public class ServicesForTesting extends AbstractModule {
 			}
 			if (key.equals(ApplicationPreferences.LAUNCH_PRESSURE) || key.equals(DefaultSimulationOptionFactory.SIMCONDITION_ATMOS_PRESSURE)) {
 				return ExtendedISAModel.STANDARD_PRESSURE;
+			}
+			if (key.equals(ApplicationPreferences.CONSTANT_GRAVITY_VALUE)) {
+				return 9.807;
 			}
 			// TODO Auto-generated method stub
 			return 0;

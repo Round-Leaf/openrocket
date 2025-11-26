@@ -4,9 +4,14 @@ import info.openrocket.core.l10n.Translator;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.util.FileUtils;
 
+import javax.swing.Action;
+import javax.swing.ActionMap;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+import java.awt.event.ActionEvent;
 import java.io.File;
+import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -14,10 +19,26 @@ public class SaveFileChooser extends JFileChooser {
     private static final Translator trans = Application.getTranslator();
 
 
+    public enum SelectionMode {
+        SINGLE_FILE,
+        DIRECTORY
+    }
+
+    public enum ViewType {
+        LIST,
+        DETAILS
+    }
+
     private File cwd = null;
     private File currentFile = null;
     private String fileName = null;
+    private ViewType viewType = ViewType.DETAILS;
 
+    @Override
+    public void updateUI() {
+        super.updateUI();
+        SwingUtilities.invokeLater(this::applyViewType);
+    }
 
     @Override
     public void setSelectedFile(File file) {
@@ -38,6 +59,58 @@ public class SaveFileChooser extends JFileChooser {
         super.setSelectedFile(file);
         fileName = file.getName();
         cwd = getCurrentDirectory();
+    }
+
+    /**
+     * Configure the chooser for either a single file save or selecting a target
+     * directory for multiple files.
+     *
+     * @param targetNames
+     *            the file names (may include paths) that will be exported
+     * @param defaultDirectory
+     *            optional directory to preselect
+     * @return the resulting selection mode
+     */
+    public SelectionMode configureForTargets(List<String> targetNames, File defaultDirectory) {
+        if (defaultDirectory != null) {
+            setCurrentDirectory(defaultDirectory);
+        }
+
+        if (targetNames == null || targetNames.size() <= 1) {
+            String baseName = "untitled";
+            if (targetNames != null && !targetNames.isEmpty()) {
+                baseName = new File(targetNames.get(0)).getName();
+            }
+            setDialogType(JFileChooser.SAVE_DIALOG);
+            setFileSelectionMode(JFileChooser.FILES_ONLY);
+            File target = defaultDirectory != null ? new File(defaultDirectory, baseName) : new File(baseName);
+            setSelectedFile(target);
+            return SelectionMode.SINGLE_FILE;
+        }
+
+        setDialogType(JFileChooser.OPEN_DIALOG);
+        setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        if (defaultDirectory != null) {
+            setSelectedFile(defaultDirectory);
+        }
+        return SelectionMode.DIRECTORY;
+    }
+
+    public void setInitialViewType(ViewType viewType) {
+        this.viewType = viewType != null ? viewType : ViewType.DETAILS;
+        applyViewType();
+    }
+
+    private void applyViewType() {
+        ActionMap actionMap = getActionMap();
+        if (actionMap == null) {
+            return;
+        }
+        String key = viewType == ViewType.LIST ? "viewTypeList" : "viewTypeDetails";
+        Action action = actionMap.get(key);
+        if (action != null) {
+            action.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, key));
+        }
     }
 
     @Override

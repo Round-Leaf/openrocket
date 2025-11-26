@@ -112,7 +112,7 @@ public class CustomExpressionPanel extends JPanel {
 						log.info(Markers.USER_MARKER, "Error opening document to import expressions from.");
 					}
 					updateExpressions();
-					((SwingPreferences) Application.getPreferences()).setDefaultDirectory(fc.getCurrentDirectory());
+					Application.getPreferences().setDefaultDirectory(fc.getCurrentDirectory());
 				}
 			}
 		});

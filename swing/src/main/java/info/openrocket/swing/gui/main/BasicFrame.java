@@ -75,6 +75,7 @@ import info.openrocket.core.document.events.DocumentChangeListener;
 import info.openrocket.core.file.GeneralRocketSaver;
 import info.openrocket.core.file.RocketLoadException;
 import info.openrocket.core.file.rasaero.RASAeroCommonConstants;
+import info.openrocket.core.file.svg.export.SVGExportOptions;
 import info.openrocket.core.l10n.Translator;
 import info.openrocket.core.logging.Markers;
 import info.openrocket.core.rocketcomponent.ComponentChangeEvent;
@@ -89,12 +90,13 @@ import info.openrocket.core.util.MemoryManagement.MemoryData;
 import info.openrocket.core.util.Reflection;
 import info.openrocket.core.util.TestRockets;
 
-import info.openrocket.swing.gui.choosers.OBJOptionChooser;
 import info.openrocket.swing.gui.configdialog.SaveDesignInfoPanel;
 import info.openrocket.swing.gui.dialogs.ErrorWarningDialog;
 import info.openrocket.swing.gui.components.StyledLabel;
 import info.openrocket.swing.gui.configdialog.ComponentConfigDialog;
 import info.openrocket.swing.gui.customexpression.CustomExpressionDialog;
+import info.openrocket.swing.gui.export.SVGRocketPartsExporter;
+import info.openrocket.swing.gui.export.SvgOptionsDialog;
 import info.openrocket.swing.gui.dialogs.AboutDialog;
 import info.openrocket.swing.gui.dialogs.BugReportDialog;
 import info.openrocket.swing.gui.dialogs.componentanalysis.ComponentAnalysisDialog;
@@ -129,11 +131,14 @@ import static java.awt.event.InputEvent.SHIFT_DOWN_MASK;
 public class BasicFrame extends JFrame {
 	private static final long serialVersionUID = 948877655223365313L;
 
-	private static final Logger log = LoggerFactory.getLogger(BasicFrame.class);
+private static final Logger log = LoggerFactory.getLogger(BasicFrame.class);
 
-	private static final GeneralRocketSaver ROCKET_SAVER = new GeneralRocketSaver();
+private static final GeneralRocketSaver ROCKET_SAVER = new GeneralRocketSaver();
+private static final int PREVIEW_WIDTH = 1000;
+private static final int PREVIEW_MIN_HEIGHT = 600;
+private static final int PREVIEW_MAX_HEIGHT = 800;
 
-	private static final Translator trans = Application.getTranslator();
+private static final Translator trans = Application.getTranslator();
 	private static final ApplicationPreferences prefs = Application.getPreferences();
 
 	public static final int SHORTCUT_KEY = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
@@ -271,6 +276,7 @@ public class BasicFrame extends JFrame {
 
 			popupMenu.addSeparator();
 			popupMenu.add(actions.getExportOBJAction());
+			popupMenu.add(actions.getExportSVGAction());
 		}
 
 		createMenu();
@@ -528,6 +534,18 @@ public class BasicFrame extends JFrame {
 		});
 		exportSubMenu.add(exportOBJ);
 
+		//////		Export SVG profiles
+		JMenuItem exportSvgProfiles = new JMenuItem(trans.get("main.menu.file.exportAs.SVGProfiles"));
+		exportSvgProfiles.setIcon(Icons.EXPORT_SVG);
+		exportSvgProfiles.getAccessibleContext().setAccessibleDescription(trans.get("main.menu.file.exportAs.SVGProfiles.desc"));
+		exportSvgProfiles.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				exportSvgProfilesAction();
+			}
+		});
+		exportSubMenu.add(exportSvgProfiles);
+
 		fileMenu.add(exportSubMenu);
 		fileMenu.addSeparator();
 
@@ -543,7 +561,7 @@ public class BasicFrame extends JFrame {
 				exportDecalAction();
 			}
 		});
-		item.setEnabled(document.getDecalList().size() > 0);
+		item.setEnabled(!document.getDecalList().isEmpty());
 
 		// TODO
 		/* document.getRocket().addChangeListener(new StateChangeListener() {
@@ -1280,14 +1298,14 @@ public class BasicFrame extends JFrame {
 
 		chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 		chooser.setMultiSelectionEnabled(true);
-		chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+		chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 		int option = chooser.showOpenDialog(parent);
 		if (option != JFileChooser.APPROVE_OPTION) {
 			log.info(Markers.USER_MARKER, "Decided not to open files, option=" + option);
 			return;
 		}
 
-		((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+		Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 
 		File[] files = chooser.getSelectedFiles();
 		log.info(Markers.USER_MARKER, "Opening files " + Arrays.toString(files));
@@ -1528,7 +1546,7 @@ public class BasicFrame extends JFrame {
 			return null;
 		}
 
-		((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+		Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 
 		return file;
 	}
@@ -1792,6 +1810,147 @@ public class BasicFrame extends JFrame {
 		return true;
 	}
 
+	/**
+	 * Export SVG profiles. If components are provided, exports only those components;
+	 * otherwise exports all exportable components from the document.
+	 *
+	 * @param components Components to export, or null to export all from document
+	 */
+	private void exportSvgProfilesAction(List<RocketComponent> components) {
+		// Get currently selected components from design (if components parameter is null)
+		List<RocketComponent> initiallySelected = components;
+		if (initiallySelected == null) {
+			initiallySelected = getSelectedComponents();
+			if (initiallySelected == null) {
+				initiallySelected = new ArrayList<>();
+			}
+		}
+		
+		// Show SVG options dialog first
+		SvgOptionsDialog optionsDialog = new SvgOptionsDialog(BasicFrame.this, document, initiallySelected);
+		optionsDialog.setFromPreferences(prefs);
+		if (!optionsDialog.showDialog()) {
+			return; // User cancelled
+		}
+
+		// Get the selected tab to determine export type
+		int selectedTab = optionsDialog.getSelectedTab();
+		
+		// Get options from dialog (includes spacing)
+		SVGExportOptions options = optionsDialog.getExportOptions();
+
+		// Now show file chooser
+		JFileChooser chooser = new JFileChooser();
+		chooser.setFileFilter(FileHelper.SVG_FILTER);
+
+		SwingPreferences swingPrefs = (SwingPreferences) Application.getPreferences();
+		File defaultDir = swingPrefs.getDefaultDirectory();
+		if (defaultDir != null) {
+			chooser.setCurrentDirectory(defaultDir);
+		}
+
+		// Determine default filename based on selected tab
+		String defaultName;
+		String fileSuffix;
+		if (selectedTab == SvgOptionsDialog.COMPONENTS_TAB) {
+			// Components tab
+			if (components != null && !components.isEmpty()) {
+				if (components.size() == 1) {
+					defaultName = components.get(0).getName();
+					if (defaultName == null || defaultName.isBlank()) {
+						defaultName = components.get(0).getComponentName();
+					}
+				} else {
+					defaultName = "components";
+				}
+			} else {
+				defaultName = document.getRocket().getName();
+				if (defaultName == null || defaultName.isBlank()) {
+					defaultName = "rocket";
+				}
+			}
+			fileSuffix = "-profile.svg";
+		} else {
+			// Fin Guides tab
+			defaultName = document.getRocket().getName();
+			if (defaultName == null || defaultName.isBlank()) {
+				defaultName = "rocket";
+			}
+			fileSuffix = "-finguides.svg";
+		}
+		File parentDir = defaultDir != null ? defaultDir : new File(System.getProperty("user.home", "."));
+		chooser.setSelectedFile(new File(parentDir, defaultName + fileSuffix));
+
+		if (chooser.showSaveDialog(BasicFrame.this) != JFileChooser.APPROVE_OPTION) {
+			return;
+		}
+
+		File target = FileHelper.forceExtension(chooser.getSelectedFile(), "svg");
+		if (!FileHelper.confirmWrite(target, BasicFrame.this)) {
+			return;
+		}
+
+		swingPrefs.setDefaultDirectory(chooser.getCurrentDirectory());
+
+		// Save SVG preferences
+		prefs.setSVGStrokeColor(optionsDialog.getStrokeColor());
+		prefs.setSVGStrokeWidth(optionsDialog.getStrokeWidth());
+		prefs.setSVGDrawCrosshair(optionsDialog.isDrawCrosshair());
+		prefs.setSVGCrosshairColor(optionsDialog.getCrosshairColor());
+		prefs.setSVGCrosshairSize(optionsDialog.getCrosshairSize());
+		prefs.setSVGShowLabels(optionsDialog.isShowLabels());
+		prefs.setSVGLabelColor(optionsDialog.getLabelColor());
+
+		try {
+			if (selectedTab == SvgOptionsDialog.COMPONENTS_TAB) {
+				// Export components
+				List<RocketComponent> selectedComponents = optionsDialog.getSelectedComponents();
+				if (!selectedComponents.isEmpty()) {
+					new SVGRocketPartsExporter().export(selectedComponents, target, options);
+				} else {
+					new SVGRocketPartsExporter().export(document, target, options);
+				}
+				log.info(Markers.USER_MARKER, "Exported SVG profiles to {}", target.getAbsolutePath());
+			}
+			// TODO: other tabs here (e.g. fin guides)
+		} catch (UnsupportedOperationException ex) {
+			log.warn("Fin guide export not implemented", ex);
+			JOptionPane.showMessageDialog(BasicFrame.this,
+					trans.get("SVGOptionPanel.finGuides.notImplemented"),
+					trans.get("SVGOptionPanel.finGuides.notImplemented.title"),
+					JOptionPane.INFORMATION_MESSAGE);
+		} catch (IllegalStateException noParts) {
+			JOptionPane.showMessageDialog(BasicFrame.this,
+					trans.get("main.menu.file.exportAs.SVGProfiles.empty"),
+					trans.get("main.menu.file.exportAs.SVGProfiles.title"),
+					JOptionPane.INFORMATION_MESSAGE);
+		} catch (Exception ex) {
+			log.warn("Failed to export SVG", ex);
+			JOptionPane.showMessageDialog(BasicFrame.this,
+					String.format(trans.get("main.menu.file.exportAs.SVGProfiles.error"), ex.getMessage()),
+					trans.get("main.menu.file.exportAs.SVGProfiles.title"),
+					JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	/**
+	 * Export all exportable components from the document as SVG profiles.
+	 */
+	private void exportSvgProfilesAction() {
+		exportSvgProfilesAction(null);
+	}
+
+	/**
+	 * Export selected components as SVG profiles.
+	 */
+	public void exportSVGAction() {
+		List<RocketComponent> selectedComponents = getSelectedComponents();
+		if (selectedComponents == null || selectedComponents.isEmpty()) {
+			return;
+		}
+		exportSvgProfilesAction(selectedComponents);
+	}
+
 
 	/**
 	 * "Save As" action.
@@ -1853,6 +2012,14 @@ public class BasicFrame extends JFrame {
 			return false;
 		}
 
+		// Generate file preview image
+		byte[] previewImage = generatePreviewImage();
+		if (previewImage != null) {
+			document.getDefaultStorageOptions().setPreviewImage(previewImage);
+		} else {
+			document.getDefaultStorageOptions().clearPreviewImage();
+		}
+
 		document.getDefaultStorageOptions().setFileType(FileType.OPENROCKET);
 		SaveFileWorker worker = new SaveFileWorker(document, file, ROCKET_SAVER);
 
@@ -1900,6 +2067,29 @@ public class BasicFrame extends JFrame {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Generate a file preview image for saving in the design file.
+	 * @return the PNG image data, or null if no preview could be generated
+	 */
+	private byte[] generatePreviewImage() {
+		if (rocketpanel == null) {
+			return null;
+		}
+
+		String viewPreference = prefs.getString(ApplicationPreferences.FILE_PREVIEW_VIEW_TYPE,
+				RocketPanel.VIEW_TYPE.SideView.name());
+		RocketPanel.VIEW_TYPE previewView = RocketPanel.VIEW_TYPE.fromName(viewPreference);
+		if (previewView == null) {
+			previewView = RocketPanel.VIEW_TYPE.SideView;
+		}
+
+		byte[] previewBytes = rocketpanel.createPreviewPng(previewView, PREVIEW_WIDTH, PREVIEW_MIN_HEIGHT, PREVIEW_MAX_HEIGHT);
+		if (previewBytes == null || previewBytes.length == 0) {
+			return null;
+		}
+		return previewBytes;
 	}
 
 
@@ -1951,7 +2141,7 @@ public class BasicFrame extends JFrame {
 	}
 
 	public void exportDecalAction() {
-		new ExportDecalDialog(BasicFrame.this, document).setVisible(true);
+		ExportDecalAction.export(BasicFrame.this, document);
 	}
 
 

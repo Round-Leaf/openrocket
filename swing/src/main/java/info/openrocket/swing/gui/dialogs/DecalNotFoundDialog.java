@@ -39,12 +39,12 @@ public abstract class DecalNotFoundDialog {
         // Look for the file
         if (resultYesNo == JOptionPane.YES_OPTION) {
             JFileChooser chooser = new JFileChooser();
-            chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+            chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
             resultFileChooser = chooser.showOpenDialog(parent);
             if (resultFileChooser == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
                 decex.getDecal().setDecalFile(file);
-                ((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+                Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
             }
         }
         return (resultYesNo == JOptionPane.YES_OPTION) && (resultFileChooser == JFileChooser.APPROVE_OPTION);

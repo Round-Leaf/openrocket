@@ -99,7 +99,7 @@ public class DesignFileSaveAsFileChooser extends SaveFileChooser {
 		this.addPropertyChangeListener(JFileChooser.SELECTED_FILE_CHANGED_PROPERTY, listener);
 		this.addPropertyChangeListener(JFileChooser.SELECTED_FILES_CHANGED_PROPERTY, listener);
 		
-		this.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+		this.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 
 		if (defaultFilename != null) {
 			this.setSelectedFile(defaultFilename);

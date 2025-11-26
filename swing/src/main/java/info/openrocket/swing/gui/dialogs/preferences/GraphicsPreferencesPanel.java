@@ -11,11 +11,9 @@ import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -27,13 +25,11 @@ import net.miginfocom.swing.MigLayout;
 
 import info.openrocket.core.arch.SystemInfo;
 import info.openrocket.core.arch.SystemInfo.Platform;
-import info.openrocket.core.startup.Application;
-
 import info.openrocket.swing.gui.adaptors.BooleanModel;
 import info.openrocket.swing.gui.components.StyledLabel;
 import info.openrocket.swing.gui.components.StyledLabel.Style;
 import info.openrocket.swing.gui.util.GUIUtil;
-import info.openrocket.swing.gui.util.SwingPreferences;
+import info.openrocket.swing.gui.util.GraphicsEditorChooser;
 
 import com.itextpdf.text.Font;
 
@@ -116,15 +112,10 @@ public class GraphicsPreferencesPanel extends PreferencesPanel {
 					
 					@Override
 					public void actionPerformed(ActionEvent e) {
-						JFileChooser fc = new JFileChooser();
-						int action = fc.showOpenDialog(SwingUtilities.windowForComponent(GraphicsPreferencesPanel.this.parentDialog));
-						if (action == JFileChooser.APPROVE_OPTION) {
-							String commandLine = fc.getSelectedFile().getAbsolutePath();
+						GraphicsEditorChooser.chooseEditor(GraphicsPreferencesPanel.this.parentDialog).ifPresent(commandLine -> {
 							commandText.setText(commandLine);
 							preferences.setDecalEditorPreference(false, commandLine);
-							((SwingPreferences) Application.getPreferences()).setDefaultDirectory(fc.getCurrentDirectory());
-						}
-						
+						});
 					}
 					
 				});

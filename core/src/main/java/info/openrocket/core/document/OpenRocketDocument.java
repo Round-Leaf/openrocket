@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import info.openrocket.core.appearance.Appearance;
+import info.openrocket.core.appearance.AppearanceBuilder;
 import info.openrocket.core.appearance.Decal;
 import info.openrocket.core.appearance.DecalImage;
 import info.openrocket.core.document.events.DocumentChangeEvent;
@@ -307,6 +308,18 @@ public class OpenRocketDocument implements ComponentChangeListener, StateChangeL
 		}
 		return count;
 	}
+
+	public boolean removeDecal(DecalImage decal) {
+		if (decal == null) {
+			return false;
+		}
+		boolean clearedUsage = clearDecalUsage(decal);
+		boolean removed = decalRegistry.removeDecal(decal);
+		if (clearedUsage || removed) {
+			fireDocumentChangeEvent(new DocumentChangeEvent(this));
+		}
+		return clearedUsage || removed;
+	}
 	
 	//TODO: LOW: move this method to rocketComponent, Appearance and decal
 	//I see 3 layers of object accessed, seems unsafe
@@ -349,6 +362,48 @@ public class OpenRocketDocument implements ComponentChangeListener, StateChangeL
 			return false;
 		}
 		return false;
+	}
+
+	private boolean clearDecalUsage(DecalImage decal) {
+		boolean updated = false;
+		for (RocketComponent component : rocket) {
+			updated |= clearOutsideDecal(component, decal);
+			updated |= clearInsideDecal(component, decal);
+		}
+		return updated;
+	}
+
+	private boolean clearOutsideDecal(RocketComponent component, DecalImage decal) {
+		Appearance appearance = component.getAppearance();
+		if (appearance == null) {
+			return false;
+		}
+		Decal texture = appearance.getTexture();
+		if (texture == null || !decal.equals(texture.getImage())) {
+			return false;
+		}
+		AppearanceBuilder builder = new AppearanceBuilder(appearance);
+		builder.setImage(null);
+		component.setAppearance(builder.getAppearance());
+		return true;
+	}
+
+	private boolean clearInsideDecal(RocketComponent component, DecalImage decal) {
+		if (!(component instanceof InsideColorComponent)) {
+			return false;
+		}
+		Appearance appearance = ((InsideColorComponent) component).getInsideColorComponentHandler().getInsideAppearance();
+		if (appearance == null) {
+			return false;
+		}
+		Decal texture = appearance.getTexture();
+		if (texture == null || !decal.equals(texture.getImage())) {
+			return false;
+		}
+		AppearanceBuilder builder = new AppearanceBuilder(appearance);
+		builder.setImage(null);
+		((InsideColorComponent) component).getInsideColorComponentHandler().setInsideAppearance(builder.getAppearance());
+		return true;
 	}
 	
 	/**

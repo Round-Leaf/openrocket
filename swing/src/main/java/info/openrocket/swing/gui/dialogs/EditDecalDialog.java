@@ -10,7 +10,6 @@ import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
@@ -23,7 +22,7 @@ import info.openrocket.core.startup.Application;
 
 import net.miginfocom.swing.MigLayout;
 import info.openrocket.swing.gui.util.GUIUtil;
-import info.openrocket.swing.gui.util.SwingPreferences;
+import info.openrocket.swing.gui.util.GraphicsEditorChooser;
 
 @SuppressWarnings("serial")
 public class EditDecalDialog extends JDialog {
@@ -72,13 +71,7 @@ public class EditDecalDialog extends JDialog {
 					
 					@Override
 					public void actionPerformed(ActionEvent e) {
-						JFileChooser fc = new JFileChooser();
-						int action = fc.showOpenDialog(owner);
-						if (action == JFileChooser.APPROVE_OPTION) {
-							commandText.setText(fc.getSelectedFile().getAbsolutePath());
-							((SwingPreferences) Application.getPreferences()).setDefaultDirectory(fc.getCurrentDirectory());
-						}
-						
+						GraphicsEditorChooser.chooseEditor(owner).ifPresent(commandText::setText);
 					}
 					
 				});
@@ -107,13 +100,7 @@ public class EditDecalDialog extends JDialog {
 					
 					@Override
 					public void actionPerformed(ActionEvent e) {
-						JFileChooser fc = new JFileChooser();
-						int action = fc.showOpenDialog(owner);
-						if (action == JFileChooser.APPROVE_OPTION) {
-							commandText.setText(fc.getSelectedFile().getAbsolutePath());
-							((SwingPreferences) Application.getPreferences()).setDefaultDirectory(fc.getCurrentDirectory());
-						}
-						
+						GraphicsEditorChooser.chooseEditor(owner).ifPresent(commandText::setText);
 					}
 					
 				});
@@ -167,6 +154,7 @@ public class EditDecalDialog extends JDialog {
 		
 		this.add(panel);
 
+		GUIUtil.installEscapeCloseButtonOperation(this, cancelButton);
 		GUIUtil.setDisposableDialogOptions(this, okButton);
 		GUIUtil.rememberWindowSize(this);
 		this.setLocationByPlatform(true);

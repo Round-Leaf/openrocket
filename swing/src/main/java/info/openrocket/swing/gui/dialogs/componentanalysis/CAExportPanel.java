@@ -178,7 +178,7 @@ public class CAExportPanel extends CSVExportPanel<CADataType> {
 
 		JFileChooser chooser = new SaveFileChooser();
 		chooser.setFileFilter(FileHelper.CSV_FILTER);
-		chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+		chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 
 		if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION)
 			return false;
@@ -202,7 +202,7 @@ public class CAExportPanel extends CSVExportPanel<CADataType> {
 		csvOptions.storePreferences();
 
 		// Store preferences and export
-		((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+		Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 		for (int i = 0; i < selected.length; i++) {
 			((SwingPreferences) Application.getPreferences()).setComponentAnalysisExportSelected(types[i], selected[i]);
 		}

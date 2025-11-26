@@ -173,7 +173,6 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 		}
 
 		tabbedPane = new JTabbedPane();
-		this.add(tabbedPane, "newline, span, growx, growy 100, wrap");
 		order.add(tabbedPane);
 		tabbedPane.addChangeListener(new ChangeListener() {
 			@Override
@@ -196,6 +195,13 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 		//// Comment and Specify a comment for the component
 		tabbedPane.addTab(trans.get("RocketCompCfg.tab.Comment"), null, commentTab(),
 				trans.get("RocketCompCfg.tab.Comment.ttip"));
+
+    JScrollPane scrollPane = new JScrollPane(tabbedPane);
+    scrollPane.setBorder(null);
+    scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
+    this.add(scrollPane, "newline, grow, push, wrap");
 
 		addButtons();
 
@@ -269,8 +275,8 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 		if (buttonPanel != null) {
 			this.remove(buttonPanel);
 		}
-		
-		buttonPanel = new JPanel(new MigLayout("fill, ins 5, hidemode 3"));
+
+		buttonPanel = new JPanel(new MigLayout("fill, ins 0, hidemode 3"));
 
 		//// Component info
 		addComponentInfo(buttonPanel);
@@ -339,8 +345,8 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 		buttonPanel.add(okButton);
 
 		updateFields();
-		
-		this.add(buttonPanel, "newline, spanx, growx");
+
+		this.add(buttonPanel, "spanx, growx");
 	}
 
 	protected void disposeDialog() {
@@ -635,7 +641,7 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 
 				double compLen = c.getLength();
 				if (c instanceof FinSet) {
-					compLen = ((FinSet) c).getInstanceBoundingBox().span().x;
+					compLen = ((FinSet) c).getInstanceBoundingBox().span().getX();
 				}
 				if (compPos + compLen > maxL) {
 					maxL = compPos + compLen;
@@ -643,7 +649,7 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 			}
 			length = new DoubleModel(maxL - minL);
 		} else if (component instanceof FinSet) {
-			double compLen = ((FinSet) component).getInstanceBoundingBox().span().x;
+			double compLen = ((FinSet) component).getInstanceBoundingBox().span().getX();
 			length = new DoubleModel(compLen);
 		} else {
 			length = new DoubleModel(component, "Length", UnitGroup.UNITS_LENGTH, 0);
@@ -719,13 +725,13 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 
 		spin.setEditor(new SpinnerEditor(spin));
 		bm.addEnableComponent(spin, true);
-		panel.add(spin, "top, growx 1");
+		panel.add(spin, "growx 1");
 		order.add(((SpinnerEditor) spin.getEditor()).getTextField());
 		
 		
 		bs = new BasicSlider(m.getSliderModel(-1.0, 1.0));
 		bm.addEnableComponent(bs);
-		panel.add(bs, "top, skip, wrap");
+		panel.add(bs, "skip, wrap");
 
 		if (component.getCDOverriddenBy() != null) {
 			check.setEnabled(false);
@@ -758,7 +764,7 @@ public class RocketComponentConfig extends JPanel implements Invalidatable, Inva
 				Style.BOLD), "wrap");
 		
 		// TODO: LOW:  Changes in comment from other sources not reflected in component
-		commentTextArea = new JTextArea(component.getComment());
+		commentTextArea = new JTextArea(component.getComment(), 1, 1);
 		commentTextArea.setBorder(marginBorder);
 		commentTextArea.setLineWrap(true);
 		commentTextArea.setWrapStyleWord(true);

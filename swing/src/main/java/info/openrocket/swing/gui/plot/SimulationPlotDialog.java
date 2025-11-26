@@ -44,8 +44,8 @@ public class SimulationPlotDialog extends PlotDialog<FlightDataType, FlightDataB
 	}
 
 	private SimulationPlotDialog(Window parent, Simulation simulation, SimulationPlotConfiguration config,
-								 SimulationPlot plot, boolean initialShowPoints) {
-		super(parent, simulation.getName(), plot, config, simulation.getSimulatedData().getBranches(), initialShowPoints);
+								 SimulationPlot plot, boolean initialShowPoints, boolean initialShowEvents) {
+		super(parent, simulation.getName(), plot, config, simulation.getSimulatedData().getBranches(), initialShowPoints, initialShowEvents);
 		this.simulation = simulation;
 		this.checkErrors.setVisible(this.simulation.hasErrors());
 	}
@@ -59,9 +59,10 @@ public class SimulationPlotDialog extends PlotDialog<FlightDataType, FlightDataB
 	 */
 	public static SimulationPlotDialog getPlot(Window parent, Simulation simulation, SimulationPlotConfiguration config) {
 		final boolean initialShowPoints = Application.getPreferences().getBoolean(ApplicationPreferences.PLOT_SHOW_POINTS, false);
+        final boolean initialShowEvents = Application.getPreferences().getBoolean(ApplicationPreferences.PLOT_SHOW_EVENTS, true);
 		final SimulationPlot plot = SimulationPlot.create(simulation, config, initialShowPoints);
 
-		return new SimulationPlotDialog(parent, simulation, config, plot, initialShowPoints);
+		return new SimulationPlotDialog(parent, simulation, config, plot, initialShowPoints, initialShowEvents);
 	}
 
 	@Override

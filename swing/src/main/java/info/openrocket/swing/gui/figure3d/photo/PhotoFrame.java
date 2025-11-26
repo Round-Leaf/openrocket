@@ -162,12 +162,12 @@ public class PhotoFrame extends JFrame {
 
 					chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 
-					chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+					chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 					int option = chooser.showOpenDialog(PhotoFrame.this);
 					if (option == JFileChooser.APPROVE_OPTION) {
 						File file = chooser.getSelectedFile();
 						log.debug("Opening File " + file.getAbsolutePath());
-						((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser
+						Application.getPreferences().setDefaultDirectory(chooser
 								.getCurrentDirectory());
 						GeneralRocketLoader grl = new GeneralRocketLoader(file);
 						try {
@@ -223,7 +223,7 @@ public class PhotoFrame extends JFrame {
 									return;
 								}
 
-								((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser
+								Application.getPreferences().setDefaultDirectory(chooser
 										.getCurrentDirectory());
 								log.info(Markers.USER_MARKER, "User chose to save image as {}", file);
 

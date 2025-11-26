@@ -19,6 +19,7 @@ import info.openrocket.core.file.wavefrontobj.export.OBJExportOptions;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.models.atmosphere.AtmosphericModel;
 import info.openrocket.core.models.atmosphere.ExtendedISAModel;
+import info.openrocket.core.models.gravity.GravityModelType;
 import info.openrocket.core.models.wind.PinkNoiseWindModel;
 import info.openrocket.core.preset.ComponentPreset;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
@@ -68,8 +69,10 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 	public static final String EXPORT_COMMENT_CHARACTER = "ExportCommentCharacter";
 	public static final String USER_LOCAL = "locale";
 	public static final String DEFAULT_DIRECTORY = "defaultDirectory";
+	public static final String FILE_PREVIEW_VIEW_TYPE = "FilePreviewViewType";
 
 	public static final String PLOT_SHOW_POINTS = "ShowPlotPoints";
+    public static final String PLOT_SHOW_EVENTS = "ShowPlotEvents";
 
 	private static final String IGNORE_WELCOME = "IgnoreWelcome";
 
@@ -146,6 +149,8 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 	public static final String SIMULATION_TIME_STEP = "SimulationTimeStep";
 	public static final String SIMULATION_MAX_TIME = "SimulationMaxTime";
 	public static final String GEODETIC_COMPUTATION = "GeodeticComputationStrategy";
+	public static final String GRAVITY_MODEL = "GravityModel";
+	public static final String CONSTANT_GRAVITY_VALUE = "ConstantGravityValue";
 	public static final String SIMULATION_STEPPER_METHOD = "SimulationStepperMethod";
 
 	public static final String UI_THEME = "UITheme";
@@ -175,6 +180,12 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 	// SVG export options
 	public static final String SVG_STROKE_COLOR = "SVGStrokeColor";
 	public static final String SVG_STROKE_WIDTH = "SVGStrokeWidth";
+	public static final String SVG_DRAW_CROSSHAIR = "SVGDrawCrosshair";
+	public static final String SVG_CROSSHAIR_COLOR = "SVGCrosshairColor";
+	public static final String SVG_CROSSHAIR_SIZE = "SVGCrosshairSize";
+	public static final String SVG_SHOW_LABELS = "SVGShowLabels";
+	public static final String SVG_LABEL_COLOR = "SVGLabelColor";
+	public static final String SVG_PART_SPACING = "SVGPartSpacing";
 	
 	private static final AtmosphericModel ISA_ATMOSPHERIC_MODEL = new ExtendedISAModel();
 
@@ -217,6 +228,23 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 	public abstract java.util.prefs.Preferences getNode(String nodeName);
 
 	public abstract java.util.prefs.Preferences getPreferences();
+
+	public File getDefaultDirectory() {
+		String file = getString(ApplicationPreferences.DEFAULT_DIRECTORY, null);
+		if (file == null)
+			return null;
+		return new File(file);
+	}
+
+	public void setDefaultDirectory(File dir) {
+		String d;
+		if (dir == null) {
+			d = null;
+		} else {
+			d = dir.getAbsolutePath();
+		}
+		putString(ApplicationPreferences.DEFAULT_DIRECTORY, d);
+	}
 
 	/*
 	 * Welcome dialog
@@ -400,10 +428,13 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 	
 	
 	public double getLaunchRodDirection() {
-		if (this.getBoolean(LAUNCH_INTO_WIND, true)) {
-			this.setLaunchRodDirection(this.getDouble(WIND_DIRECTION, Math.PI / 2));
+		if (this.getBoolean(LAUNCH_INTO_WIND, false)) {
+			// When launching into wind, sync the launch rod direction with wind direction
+			double windDirection = this.getDouble(WIND_DIRECTION, Math.PI / 2);
+			this.setLaunchRodDirection(windDirection);
+			return windDirection;
 		}
-		return this.getDouble(WIND_DIRECTION, Math.PI / 2);
+		return this.getDouble(LAUNCH_ROD_DIRECTION, Math.PI / 2);
 	}
 	
 	public void setLaunchRodDirection(double launchRodDirection) {
@@ -582,6 +613,25 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 
 	public void setGeodeticComputation(GeodeticComputationStrategy gcs) {
 		this.putEnum(GEODETIC_COMPUTATION, gcs);
+	}
+
+	public GravityModelType getGravityModel() {
+		return this.getEnum(GRAVITY_MODEL, GravityModelType.WGS);
+	}
+
+	public void setGravityModel(GravityModelType gmt) {
+		this.putEnum(GRAVITY_MODEL, gmt);
+	}
+
+	public double getConstantGravityValue() {
+		return this.getDouble(CONSTANT_GRAVITY_VALUE, 9.807);
+	}
+
+	public void setConstantGravityValue(double value) {
+		if (MathUtil.equals(this.getDouble(CONSTANT_GRAVITY_VALUE, 9.807), value))
+			return;
+		this.putDouble(CONSTANT_GRAVITY_VALUE, value);
+		fireChangeEvent();
 	}
 
 	public SimulationStepperMethod getSimulationStepperMethodChoice() {
@@ -1341,6 +1391,116 @@ public abstract class ApplicationPreferences implements ChangeSource, ORPreferen
 	 */
 	public void setSVGStrokeWidth(double width) {
 		putDouble(SVG_STROKE_WIDTH, width);
+	}
+
+	/**
+	 * Returns whether SVG exports should include crosshairs (used for centering rings/bulkheads).
+	 *
+	 * @return true if crosshairs should be drawn
+	 */
+	public boolean isSVGDrawCrosshair() {
+		return getBoolean(SVG_DRAW_CROSSHAIR, false);
+	}
+
+	/**
+	 * Sets whether SVG exports should include crosshairs.
+	 *
+	 * @param drawCrosshair true to include crosshairs
+	 */
+	public void setSVGDrawCrosshair(boolean drawCrosshair) {
+		putBoolean(SVG_DRAW_CROSSHAIR, drawCrosshair);
+	}
+
+	/**
+	 * Returns the color used for crosshair guides in SVG exports.
+	 *
+	 * @return the crosshair color
+	 */
+	public Color getSVGCrosshairColor() {
+		return getColor(SVG_CROSSHAIR_COLOR, ORColor.fromAWTColor(Color.GRAY)).toAWTColor();
+	}
+
+	/**
+	 * Sets the crosshair color for SVG exports.
+	 *
+	 * @param color the color to use for crosshairs
+	 */
+	public void setSVGCrosshairColor(Color color) {
+		putColor(SVG_CROSSHAIR_COLOR, ORColor.fromAWTColor(color));
+	}
+
+	/**
+	 * Returns the crosshair size used for SVG exports in mm.
+	 * This is the length of one full crosshair line.
+	 *
+	 * @return the crosshair size in mm
+	 */
+	public double getSVGCrosshairSize() {
+		return getDouble(SVG_CROSSHAIR_SIZE, 2.0); // Default 2mm
+	}
+
+	/**
+	 * Sets the crosshair size used for SVG exports in mm.
+	 * This is the length of one full crosshair line.
+	 *
+	 * @param size the crosshair size in mm
+	 */
+	public void setSVGCrosshairSize(double size) {
+		putDouble(SVG_CROSSHAIR_SIZE, size);
+	}
+
+	/**
+	 * Returns whether SVG exports should include component name labels.
+	 *
+	 * @return true if labels should be shown
+	 */
+	public boolean isSVGShowLabels() {
+		return getBoolean(SVG_SHOW_LABELS, true);
+	}
+
+	/**
+	 * Sets whether SVG exports should include component name labels.
+	 *
+	 * @param showLabels true to include labels
+	 */
+	public void setSVGShowLabels(boolean showLabels) {
+		putBoolean(SVG_SHOW_LABELS, showLabels);
+	}
+
+	/**
+	 * Returns the color used for component name labels in SVG exports.
+	 *
+	 * @return the label color
+	 */
+	public Color getSVGLabelColor() {
+		return getColor(SVG_LABEL_COLOR, ORColor.fromAWTColor(Color.BLACK)).toAWTColor();
+	}
+
+	/**
+	 * Sets the label color for SVG exports.
+	 *
+	 * @param color the color to use for labels
+	 */
+	public void setSVGLabelColor(Color color) {
+		putColor(SVG_LABEL_COLOR, ORColor.fromAWTColor(color));
+	}
+
+	/**
+	 * Returns the part spacing used for SVG exports in meters.
+	 *
+	 * @return the part spacing in meters
+	 */
+	public double getSVGPartSpacing() {
+		return getDouble(SVG_PART_SPACING, 0.01); // Default 10mm
+	}
+
+	/**
+	 * Sets the part spacing used for SVG exports in meters.
+	 *
+	 * @param spacing the part spacing in meters
+	 */
+	public void setSVGPartSpacing(double spacing) {
+		putDouble(SVG_PART_SPACING, spacing);
 	}
 
 	/**

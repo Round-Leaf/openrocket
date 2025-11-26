@@ -342,7 +342,7 @@ public class ComponentPresetEditor extends JPanel implements PresetResultListene
 			return false;
 		}
 
-		((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+		Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 		
 		File file = chooser.getSelectedFile();
 		try {

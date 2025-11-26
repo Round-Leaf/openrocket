@@ -5,6 +5,10 @@ import java.awt.Window;
 import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import info.openrocket.core.appearance.AppearanceBuilder;
 import info.openrocket.core.appearance.DecalImage;
@@ -24,8 +28,13 @@ import info.openrocket.swing.gui.watcher.WatchEvent;
 import info.openrocket.swing.gui.watcher.WatchService;
 
 import com.google.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EditDecalHelper {
+
+	private static final Logger log = LoggerFactory.getLogger(EditDecalHelper.class);
+	private static final long CUSTOM_EDITOR_EXIT_WAIT_SECONDS = 2;
 	
 	@Inject
 	private WatchService watchService;
@@ -177,6 +186,7 @@ public class EditDecalHelper {
 		
 		try {
 			decal.exportImage(tmpFile);
+			decal.setDecalFile(tmpFile);
 			watchService.register(new FileWatcher(tmpFile) {
 				
 				@Override
@@ -200,38 +210,177 @@ public class EditDecalHelper {
 		
 		
 		if (useSystemEditor) {
-			try {
-				Desktop.getDesktop().edit(tmpFile);
-			} catch (Exception ioex) {
-				throw new EditDecalHelperException(trans.get("EditDecalHelper.launchSystemEditorException"), trans.get("EditDecalHelper.editPreferencesHelp"), ioex);
-			}
+			launchWithSystemDesktop(tmpFile);
 		} else {
-			
-			String filename = tmpFile.getAbsolutePath();
-			
-			String command;
-			if (commandTemplate.contains("%%")) {
-				command = commandTemplate.replace("%%", filename);
-			} else {
-				command = commandTemplate + " " + filename;
-			}
-			
-			/* On OSX, the program needs to be opened using the command
-			 * open -a to tell it which application to use to open the 
-			 * program. Check to see if the command starts with it or not
-			 * and pre-pend it as necessary. See issue #619.
-			 */
-			if (SystemInfo.getPlatform() == Platform.MAC_OS && !command.startsWith("open -a")) {
-				command = "open -a " + command;
-			}
-			
-			try {
-				Runtime.getRuntime().exec(command);
-			} catch (IOException ioex) {
-				String message = MessageFormat.format(trans.get("EditDecalHelper.launchCustomEditorException"), command);
-				throw new EditDecalHelperException(message, trans.get("EditDecalHelper.editPreferencesHelp"), ioex);
-			}
+			runCustomEditorCommand(commandTemplate, tmpFile.getAbsolutePath());
 			
 		}
+	}
+
+	private void runCustomEditorCommand(String commandTemplate, String filename) throws EditDecalHelperException {
+		List<String> commandTokens = buildCustomEditorCommand(commandTemplate, filename);
+		if (commandTokens.isEmpty()) {
+			throw new EditDecalHelperException(trans.get("EditDecalHelper.launchCustomEditorException"),
+					trans.get("EditDecalHelper.editPreferencesHelp"),
+					new IllegalArgumentException("Command template is empty"));
+		}
+		log.debug("Launching custom graphics editor with command tokens {}", commandTokens);
+
+		Process process = null;
+		try {
+			process = new ProcessBuilder(commandTokens).start();
+			drainAndClose(process);
+
+			boolean finished = process.waitFor(CUSTOM_EDITOR_EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
+			if (finished && process.exitValue() != 0) {
+				String message = formatCustomEditorFailure(String.join(" ", commandTokens));
+				throw new EditDecalHelperException(message, trans.get("EditDecalHelper.editPreferencesHelp"),
+						new IllegalStateException("Editor exited with code " + process.exitValue()));
+			}
+		} catch (IOException ioex) {
+			String message = formatCustomEditorFailure(String.join(" ", commandTokens));
+			throw new EditDecalHelperException(message, trans.get("EditDecalHelper.editPreferencesHelp"), ioex);
+		} catch (InterruptedException iex) {
+			Thread.currentThread().interrupt();
+			String message = formatCustomEditorFailure(String.join(" ", commandTokens));
+			throw new EditDecalHelperException(message, trans.get("EditDecalHelper.editPreferencesHelp"), iex);
+		} finally {
+			if (process != null) {
+				process.destroy();
+			}
+		}
+	}
+
+	private void drainAndClose(Process process) {
+		try {
+			process.getInputStream().close();
+		} catch (IOException ignored) {
+		}
+		try {
+			process.getErrorStream().close();
+		} catch (IOException ignored) {
+		}
+		try {
+			process.getOutputStream().close();
+		} catch (IOException ignored) {
+		}
+	}
+
+	private String formatCustomEditorFailure(String command) {
+		return MessageFormat.format(trans.get("EditDecalHelper.launchCustomEditorException"), command);
+	}
+
+	private List<String> buildCustomEditorCommand(String commandTemplate, String filename) {
+		String template = commandTemplate == null ? "" : commandTemplate.trim();
+		List<String> parsed = splitCommand(template);
+		if (parsed.isEmpty() && !template.contains("%%") && !template.isEmpty()) {
+			parsed = new ArrayList<>();
+			parsed.add(template);
+		}
+
+		List<String> resolved = new ArrayList<>();
+		boolean placeholderReplaced = false;
+		for (String token : parsed) {
+			if (token.contains("%%")) {
+				resolved.add(token.replace("%%", filename));
+				placeholderReplaced = true;
+			} else {
+				resolved.add(token);
+			}
+		}
+		if (!placeholderReplaced && filename != null && !filename.isEmpty()) {
+			resolved.add(filename);
+		}
+
+		if (SystemInfo.getPlatform() == Platform.MAC_OS && !startsWithOpenApplication(resolved)) {
+			List<String> macCommand = new ArrayList<>();
+			macCommand.add("open");
+			macCommand.add("-a");
+			macCommand.addAll(resolved);
+			return macCommand;
+		}
+
+		return resolved;
+	}
+
+	private List<String> splitCommand(String commandTemplate) {
+		if (commandTemplate == null || commandTemplate.isEmpty()) {
+			return Collections.emptyList();
+		}
+		List<String> tokens = new ArrayList<>();
+		StringBuilder current = new StringBuilder();
+		boolean inDouble = false;
+		boolean inSingle = false;
+		boolean escaping = false;
+		for (int i = 0; i < commandTemplate.length(); i++) {
+			char c = commandTemplate.charAt(i);
+			if (escaping) {
+				current.append(c);
+				escaping = false;
+				continue;
+			}
+			if (c == '\\' && !inSingle) {
+				escaping = true;
+				continue;
+			}
+			if (c == '"' && !inSingle) {
+				inDouble = !inDouble;
+				continue;
+			}
+			if (c == '\'' && !inDouble) {
+				inSingle = !inSingle;
+				continue;
+			}
+			if (Character.isWhitespace(c) && !inDouble && !inSingle) {
+				if (current.length() > 0) {
+					tokens.add(current.toString());
+					current.setLength(0);
+				}
+				continue;
+			}
+			current.append(c);
+		}
+		if (current.length() > 0) {
+			tokens.add(current.toString());
+		}
+		return tokens;
+	}
+
+	private boolean startsWithOpenApplication(List<String> commandTokens) {
+		return commandTokens.size() >= 2 &&
+				"open".equals(commandTokens.get(0)) &&
+				"-a".equals(commandTokens.get(1));
+	}
+
+	private void launchWithSystemDesktop(File tmpFile) throws EditDecalHelperException {
+		if (!Desktop.isDesktopSupported()) {
+			throw new EditDecalHelperException(trans.get("EditDecalHelper.launchSystemEditorException"),
+					trans.get("EditDecalHelper.editPreferencesHelp"), new UnsupportedOperationException("Desktop API not supported"));
+		}
+
+		Exception lastFailure = null;
+		Desktop desktop = Desktop.getDesktop();
+
+		if (desktop.isSupported(Desktop.Action.EDIT)) {
+			try {
+				desktop.edit(tmpFile);
+				return;
+			} catch (Exception ex) {
+				lastFailure = ex;
+				log.error("Desktop#edit failed when launching graphics editor, attempting Desktop#open fallback", ex);
+			}
+		}
+
+		if (desktop.isSupported(Desktop.Action.OPEN)) {
+			try {
+				desktop.open(tmpFile);
+				return;
+			} catch (Exception ex) {
+				lastFailure = ex;
+			}
+		}
+
+		throw new EditDecalHelperException(trans.get("EditDecalHelper.launchSystemEditorException"),
+				trans.get("EditDecalHelper.editPreferencesHelp"), lastFailure);
 	}
 }

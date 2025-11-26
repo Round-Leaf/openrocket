@@ -623,7 +623,7 @@ private static final String APP_PREF_KEY_SIMULATION_TABLE_HIDDEN_COLUMNS = "simu
 		JFileChooser chooser = new SaveFileChooser();
 		chooser.setDialogTitle(trans.get("simpanel.pop.exportToCSV.save.dialog.title"));
 		chooser.setFileFilter(FileHelper.CSV_FILTER);
-		chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+		chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 		chooser.setAcceptAllFileFilterUsed(false);
 
 		// Default output CSV to same name as the document's rocket name.
@@ -674,7 +674,8 @@ private static final String APP_PREF_KEY_SIMULATION_TABLE_HIDDEN_COLUMNS = "simu
 		}
 
 		OpenRocketClipboard.setClipboard(simsCopy);
-		copySimulationValues(Application.getPreferences().getString(ApplicationPreferences.EXPORT_FIELD_SEPARATOR, ","));
+		// Use tab separator for clipboard operations so Excel properly recognizes columns
+		copySimulationValues("\t");
 	}
 
 	/**

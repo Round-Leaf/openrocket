@@ -119,6 +119,13 @@ public class DecalRegistry {
 
 		return decals;
 	}
+	
+	boolean removeDecal(DecalImage decal) {
+		if (decal == null) {
+			return false;
+		}
+		return registeredDecals.remove(decal.getName()) != null;
+	}
 
 	public class DecalImageImpl implements DecalImage, Cloneable, Comparable<DecalImage>, ChangeSource {
 

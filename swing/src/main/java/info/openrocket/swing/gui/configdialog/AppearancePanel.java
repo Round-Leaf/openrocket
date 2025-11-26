@@ -12,13 +12,13 @@ import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.List;
 
+import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JColorChooser;
 import javax.swing.JDialog;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
-import javax.swing.JComboBox;
 import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
@@ -32,6 +32,7 @@ import javax.swing.event.ChangeListener;
 
 import info.openrocket.core.util.Invalidatable;
 import info.openrocket.swing.gui.components.ColorChooserButton;
+import info.openrocket.swing.gui.util.Icons;
 import info.openrocket.swing.gui.widgets.PlaceholderTextField;
 import net.miginfocom.swing.MigLayout;
 import info.openrocket.core.appearance.Appearance;
@@ -66,6 +67,7 @@ import info.openrocket.swing.gui.components.ColorIcon;
 import info.openrocket.swing.gui.components.StyledLabel;
 import info.openrocket.swing.gui.components.StyledLabel.Style;
 import info.openrocket.swing.gui.components.UnitSelector;
+import info.openrocket.swing.gui.components.TextureComboBox;
 import info.openrocket.swing.gui.util.ColorConversion;
 import info.openrocket.swing.gui.util.EditDecalHelper;
 import info.openrocket.swing.gui.util.EditDecalHelper.EditDecalHelperException;
@@ -536,23 +538,8 @@ public class AppearancePanel extends JPanel implements Invalidatable, Invalidati
 		register(mDefault);
 
 		DecalModel decalModel = new DecalModel(panel, document, builder);
-		JComboBox<DecalImage> textureDropDown = new JComboBox<>(decalModel);
-		textureDropDown.setMaximumRowCount(20);
-
-		// We need to add this action listener that triggers a decalModel update when the same item is selected, because
-		// for multi-comp edits, the listeners' decals may not be updated otherwise
-		textureDropDown.addActionListener(new ActionListener() {
-			private DecalImage previousSelection = (DecalImage) decalModel.getSelectedItem();
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				DecalImage decal = (DecalImage) textureDropDown.getSelectedItem();
-				if (decal == previousSelection) {
-					decalModel.setSelectedItem(decal);
-				}
-				previousSelection = decal;
-			}
-		});
+		cleanupTasks.add(decalModel::dispose);
+		TextureComboBox textureDropDown = new TextureComboBox(decalModel);
 
 		final ColorChooserButton colorButton = new ColorChooserButton(ColorConversion.toAwtColor(builder.getPaint()), paintColorChooser);
 		PlaceholderTextField colorHexField = new PlaceholderTextField(7);
@@ -620,17 +607,31 @@ public class AppearancePanel extends JPanel implements Invalidatable, Invalidati
 		order.add(materialDefault);
 
 		// Texture File
-		panel.add(new JLabel(trans.get("AppearanceCfg.lbl.Texture")));
-		JPanel p = new JPanel(new MigLayout("fill, ins 0", "[grow][]"));
+		panel.add(new JLabel(trans.get("AppearanceCfg.lbl.Texture")), "top");
+		JPanel p = new JPanel(new MigLayout("fill, ins 0", "[grow][][pref!]"));
 		mDefault.addEnableComponent(textureDropDown, false);
-		p.add(textureDropDown, "grow");
+		p.add(textureDropDown, "growx, top");
+
+		//// Select file button
+		JButton chooseTextureBtn = new JButton(trans.get("DecalModel.lbl.choose"));
+		chooseTextureBtn.setIcon(Icons.FILE_OPEN);
+		chooseTextureBtn.addActionListener(e -> decalModel.promptForFileSelection());
+		mDefault.addEnableComponent(chooseTextureBtn, false);
+		p.add(chooseTextureBtn, "top");
+
+		JPanel actionPanel = new JPanel(new MigLayout("fill, ins 0, gapy 4", "[fill]"));
+		p.add(actionPanel, "top");
 		panel.add(p, "spanx 3, growx, wrap");
 		order.add(textureDropDown);
+		order.add(chooseTextureBtn);
+
+		JPanel editDeletePanel = new JPanel(new MigLayout("fill, ins 0, gapy 4", "[fill]"));
 
 		//// Edit button
 		if ((SystemInfo.getPlatform() != Platform.UNIX) || !SystemInfo.isConfined()) {
 			JButton editBtn = new JButton(
 					trans.get("AppearanceCfg.but.edit"));
+			editBtn.setIcon(Icons.EDIT_EDIT);
 			// Enable the editBtn only when the appearance builder has an Image
 			// assigned to it.
 			editBtn.setEnabled(!materialDefault.isSelected() && builder.getImage() != null);
@@ -662,8 +663,22 @@ public class AppearancePanel extends JPanel implements Invalidatable, Invalidati
 					}
 				}
 			});
-			p.add(editBtn);
+			editDeletePanel.add(editBtn, "growx, wrap");
+			order.add(editBtn);
 		}
+
+		//// Delete button
+		JButton deleteTextureBtn = new JButton(trans.get("DecalModel.but.delete"));
+		deleteTextureBtn.setIcon(Icons.EDIT_DELETE);
+		Runnable refreshDeleteButtonState = () -> deleteTextureBtn.setEnabled(decalModel.getActiveDecal() != null);
+		deleteTextureBtn.addActionListener(e -> handleDeleteTexture(panel, decalModel, refreshDeleteButtonState));
+		textureDropDown.addActionListener(e -> refreshDeleteButtonState.run());
+		refreshDeleteButtonState.run();
+		mDefault.addEnableComponent(deleteTextureBtn, false);
+		editDeletePanel.add(deleteTextureBtn, "growx");
+		order.add(deleteTextureBtn);
+
+		actionPanel.add(editDeletePanel, "growx");
 
 		// TODO: move the separate columns in two separate panels instead of adding them in a zig-zag way
 		// Color
@@ -820,6 +835,33 @@ public class AppearancePanel extends JPanel implements Invalidatable, Invalidati
 				decalModel.refresh();
 			}
 		});
+	}
+
+	private void handleDeleteTexture(Component parent, DecalModel decalModel, Runnable onUpdateState) {
+		DecalImage selected = decalModel.getActiveDecal();
+		if (selected == null) {
+			JOptionPane.showMessageDialog(parent,
+					trans.get("DecalModel.msg.noSelection"),
+					trans.get("DecalModel.msg.deleteTitle"),
+					JOptionPane.INFORMATION_MESSAGE);
+			return;
+		}
+		int decision = JOptionPane.showConfirmDialog(parent,
+				trans.get("DecalModel.msg.deleteConfirm", selected.getName()),
+				trans.get("DecalModel.msg.deleteTitle"),
+				JOptionPane.OK_CANCEL_OPTION,
+				JOptionPane.WARNING_MESSAGE);
+		if (decision == JOptionPane.OK_OPTION) {
+			boolean removed = decalModel.deleteDecal(selected);
+			if (!removed) {
+				JOptionPane.showMessageDialog(parent,
+						trans.get("DecalModel.msg.deleteFailed"),
+						trans.get("DecalModel.msg.deleteTitle"),
+						JOptionPane.ERROR_MESSAGE);
+			} else if (onUpdateState != null) {
+				onUpdateState.run();
+			}
+		}
 	}
 
 	@Override

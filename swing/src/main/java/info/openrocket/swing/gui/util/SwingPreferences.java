@@ -512,24 +512,6 @@ public class SwingPreferences extends ApplicationPreferences {
 			return;
 		putString("componentColors", c.getSimpleName(), stringifyColor(color));
 	}
-	
-	public File getDefaultDirectory() {
-		String file = getString(ApplicationPreferences.DEFAULT_DIRECTORY, null);
-		if (file == null)
-			return null;
-		return new File(file);
-	}
-	
-	public void setDefaultDirectory(File dir) {
-		String d;
-		if (dir == null) {
-			d = null;
-		} else {
-			d = dir.getAbsolutePath();
-		}
-		putString(ApplicationPreferences.DEFAULT_DIRECTORY, d);
-		storeVersion();
-	}
 
 	/**
 	 * Set the operating system that the software updater will use to redirect you to an installer download link.

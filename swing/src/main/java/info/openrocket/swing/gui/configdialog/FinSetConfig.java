@@ -1,42 +1,11 @@
 package info.openrocket.swing.gui.configdialog;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JFileChooser;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JSpinner;
-import javax.swing.SwingUtilities;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-
-import info.openrocket.core.material.MaterialGroup;
-import info.openrocket.core.preferences.ApplicationPreferences;
-import info.openrocket.swing.gui.components.SVGOptionPanel;
-import info.openrocket.swing.gui.dialogs.preferences.PreferencesDialog;
-import info.openrocket.swing.gui.main.BasicFrame;
-import info.openrocket.swing.gui.util.FileHelper;
-import info.openrocket.swing.gui.util.SwingPreferences;
-import info.openrocket.swing.gui.widgets.GroupableAndSearchableComboBox;
-import info.openrocket.swing.gui.widgets.MaterialComboBox;
-import net.miginfocom.swing.MigLayout;
-
 import info.openrocket.core.document.OpenRocketDocument;
-import info.openrocket.core.file.svg.export.SVGBuilder;
 import info.openrocket.core.l10n.Translator;
 import info.openrocket.core.logging.Markers;
 import info.openrocket.core.material.Material;
+import info.openrocket.core.material.MaterialGroup;
+import info.openrocket.core.preferences.ApplicationPreferences;
 import info.openrocket.core.rocketcomponent.CenteringRing;
 import info.openrocket.core.rocketcomponent.FinSet;
 import info.openrocket.core.rocketcomponent.FreeformFinSet;
@@ -46,9 +15,8 @@ import info.openrocket.core.rocketcomponent.SymmetricComponent;
 import info.openrocket.core.rocketcomponent.position.AxialMethod;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.unit.UnitGroup;
-import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.MathUtil;
-
 import info.openrocket.swing.gui.SpinnerEditor;
 import info.openrocket.swing.gui.adaptors.DoubleModel;
 import info.openrocket.swing.gui.adaptors.EnumModel;
@@ -57,9 +25,25 @@ import info.openrocket.swing.gui.components.BasicSlider;
 import info.openrocket.swing.gui.components.StyledLabel;
 import info.openrocket.swing.gui.components.StyledLabel.Style;
 import info.openrocket.swing.gui.components.UnitSelector;
-
+import info.openrocket.swing.gui.widgets.GroupableAndSearchableComboBox;
+import info.openrocket.swing.gui.widgets.MaterialComboBox;
+import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SwingUtilities;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 
 @SuppressWarnings("serial")
@@ -144,52 +128,13 @@ public abstract class FinSetConfig extends RocketComponentConfig {
 		});
 		split.setEnabled(((FinSet) component).getFinCount() > 1);
 
-		//// Export to SVG
-		JButton exportSVGBtn = new JButton(trans.get("FinSetConfig.lbl.exportSVG"));
-		exportSVGBtn.setToolTipText(trans.get("FinSetConfig.lbl.exportSVG.ttip"));
-		exportSVGBtn.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				log.info(Markers.USER_MARKER, "Export CSV free-form fin");
-
-				JFileChooser chooser = new JFileChooser();
-				chooser.setFileFilter(FileHelper.SVG_FILTER);
-				chooser.setAccessory(new SVGOptionPanel());
-				chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
-
-				if (JFileChooser.APPROVE_OPTION == chooser.showSaveDialog(FinSetConfig.this)){
-					File selectedFile= chooser.getSelectedFile();
-					selectedFile = FileHelper.forceExtension(selectedFile, "svg");
-					if (!FileHelper.confirmWrite(selectedFile, buttonPanel)) {
-						return;
-					}
-
-					((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
-					SVGOptionPanel svgOptions = (SVGOptionPanel) chooser.getAccessory();
-					prefs.setSVGStrokeColor(svgOptions.getStrokeColor());
-					prefs.setSVGStrokeWidth(svgOptions.getStrokeWidth());
-
-					try {
-						FinSetConfig.writeSVGFile((FinSet) component, selectedFile, svgOptions);
-					} catch (Exception svgErr) {
-						JOptionPane.showMessageDialog(FinSetConfig.this,
-								String.format(trans.get("FinSetConfig.errorSVG.msg"), svgErr.getMessage()),
-								trans.get("FinSetConfig.errorSVG.title"), JOptionPane.ERROR_MESSAGE);
-					}
-				}
-			}
-		});
-
 		if (convert == null) {
-			addButtons(split, exportSVGBtn);
+			addButtons(split);
 			order.add(split);
-			order.add(exportSVGBtn);
-		}
-		else {
-			addButtons(split, convert, exportSVGBtn);
+		} else {
+			addButtons(split, convert);
 			order.add(split);
 			order.add(convert);
-			order.add(exportSVGBtn);
 		}
 	}
 	
@@ -360,9 +305,9 @@ public abstract class FinSetConfig extends RocketComponentConfig {
 				}
 
 				// Compute tab height
-				final Coordinate finFront = ((FinSet) component).getFinFront();
-				double finStart = finFront.x + ((FinSet) component).getTabFrontEdge();
-				double finEnd = finFront.x + ((FinSet) component).getTabTrailingEdge();
+				final CoordinateIF finFront = ((FinSet) component).getFinFront();
+				double finStart = finFront.getX() + ((FinSet) component).getTabFrontEdge();
+				double finEnd = finFront.getX() + ((FinSet) component).getTabTrailingEdge();
 				double parentMinRadius = MathUtil.min(((SymmetricComponent)parent).getRadius(finStart),
 						((SymmetricComponent)parent).getRadius(finEnd));
 				double height = parentMinRadius - maxTubeRad;
@@ -642,28 +587,4 @@ public abstract class FinSetConfig extends RocketComponentConfig {
 	    return filletPanel;
 	}
 
-	/**
-	 * Writes the FinSet object to an SVG file.
-	 *
-	 * @param finSet      the FinSet object to write to the SVG file
-	 * @param file        the File object representing the SVG file to be written
-	 * @param svgOptions  the SVGOptionPanel object containing the options for writing the SVG file
-	 * @throws Exception if there is an error writing the SVG file
-	 */
-	public static void writeSVGFile(FinSet finSet, File file, SVGOptionPanel svgOptions) throws ParserConfigurationException, TransformerException {
-		Coordinate[] points = finSet.generateContinuousFinAndTabShape();
-
-		SVGBuilder builder = new SVGBuilder();
-		builder.addPath(points, null, svgOptions.getStrokeColor(), svgOptions.getStrokeWidth());
-
-		// Export fin tab separately if it's beyond the fin
-		if (finSet.isTabBeyondFin()) {
-			Coordinate[] tabPoints = finSet.getTabPointsWithRoot();
-			Coordinate finFront = finSet.getFinFront();
-			// Need to offset to the fin front because the tab points are relative to the fin front
-			builder.addPath(tabPoints, finFront.x, finFront.y, null, svgOptions.getStrokeColor(), svgOptions.getStrokeWidth());
-		}
-
-		builder.writeToFile(file);
-	}
 }

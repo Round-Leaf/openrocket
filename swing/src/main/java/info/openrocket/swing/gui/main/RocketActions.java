@@ -24,11 +24,18 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import info.openrocket.core.rocketcomponent.AxialStage;
+import info.openrocket.core.rocketcomponent.BodyTube;
+import info.openrocket.core.rocketcomponent.Bulkhead;
+import info.openrocket.core.rocketcomponent.CenteringRing;
 import info.openrocket.core.rocketcomponent.ComponentChangeEvent;
 import info.openrocket.core.rocketcomponent.ComponentChangeListener;
+import info.openrocket.core.rocketcomponent.FinSet;
+import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.ParallelStage;
+import info.openrocket.core.rocketcomponent.RailButton;
 import info.openrocket.core.rocketcomponent.Rocket;
 import info.openrocket.core.rocketcomponent.RocketComponent;
+import info.openrocket.core.rocketcomponent.Transition;
 import info.openrocket.swing.gui.configdialog.ComponentConfigDialog;
 import info.openrocket.swing.gui.dialogs.ScaleDialog;
 import info.openrocket.swing.gui.util.GUIUtil;
@@ -87,6 +94,7 @@ public class RocketActions {
 	private final RocketAction moveUpAction;
 	private final RocketAction moveDownAction;
 	private final RocketAction exportOBJAction;
+	private final RocketAction exportSVGAction;
 	private final RocketAction toggleVisibilityAction;
 	private final RocketAction showAllComponentsAction;
 	private static final Translator trans = Application.getTranslator();
@@ -114,6 +122,7 @@ public class RocketActions {
 		this.moveUpAction = new MoveUpAction();
 		this.moveDownAction = new MoveDownAction();
 		this.exportOBJAction = new ExportOBJAction();
+		this.exportSVGAction = new ExportSVGAction();
 		this.toggleVisibilityAction = new ToggleVisibilityAction();
 		this.showAllComponentsAction = new ShowAllComponentsAction();
 
@@ -164,6 +173,7 @@ public class RocketActions {
 		moveUpAction.clipboardChanged();
 		moveDownAction.clipboardChanged();
 		exportOBJAction.clipboardChanged();
+		exportSVGAction.clipboardChanged();
 		toggleVisibilityAction.clipboardChanged();
 		showAllComponentsAction.clipboardChanged();
 	}
@@ -217,6 +227,10 @@ public class RocketActions {
 
 	public Action getExportOBJAction() {
 		return exportOBJAction;
+	}
+
+	public Action getExportSVGAction() {
+		return exportSVGAction;
 	}
 
 	public Action getToggleVisibilityAction() {
@@ -1293,6 +1307,58 @@ public class RocketActions {
 				}
 			}
 			return false;
+		}
+	}
+
+	private class ExportSVGAction extends RocketAction {
+		private static final long serialVersionUID = 1L;
+
+		public ExportSVGAction() {
+			this.putValue(NAME, trans.get("RocketActions.ExportSVGAct.ExportSVG"));
+			this.putValue(SMALL_ICON, Icons.EXPORT_SVG);
+			this.putValue(SHORT_DESCRIPTION, trans.get("RocketActions.ExportSVGAct.ttip.ExportSVG"));
+			clipboardChanged();
+		}
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			List<RocketComponent> components = selectionModel.getSelectedComponents();
+			if (components.isEmpty()) {
+				return;
+			}
+
+			ComponentConfigDialog.disposeDialog();
+			parentFrame.exportSVGAction();
+		}
+
+		@Override
+		public void clipboardChanged() {
+			List<RocketComponent> components = selectionModel.getSelectedComponents();
+			boolean hasExportableComponent = hasExportableComponent(components);
+			this.setEnabled(hasExportableComponent);
+		}
+
+		private static boolean hasExportableComponent(List<RocketComponent> components) {
+			for (RocketComponent component : components) {
+				if (isExportable(component)) {
+					return true;
+				}
+				for (RocketComponent child : component.getAllChildren()) {
+					if (isExportable(child)) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		private static boolean isExportable(RocketComponent component) {
+			return component instanceof CenteringRing ||
+					component instanceof Bulkhead ||
+					component instanceof FinSet ||
+					component instanceof Transition ||
+					component instanceof BodyTube ||
+					component instanceof RailButton;
 		}
 	}
 

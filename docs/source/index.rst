@@ -51,6 +51,7 @@ Welcome to OpenRocket's documentation!
    /dev_guide/testing_and_debugging
    /dev_guide/file_specification
    /dev_guide/api_documentation
+   /dev_guide/command_line_arguments
    /dev_guide/building_releasing
    /dev_guide/contributing_to_translations
    /dev_guide/contributing_to_the_docs

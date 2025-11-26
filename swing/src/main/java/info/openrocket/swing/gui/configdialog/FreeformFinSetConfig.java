@@ -5,7 +5,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -42,6 +41,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.AbstractTableModel;
 
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.swing.gui.adaptors.CustomFocusTraversalPolicy;
 import info.openrocket.swing.gui.util.Icons;
 import org.slf4j.Logger;
@@ -59,7 +59,6 @@ import info.openrocket.core.rocketcomponent.IllegalFinPointException;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.unit.UnitGroup;
-import info.openrocket.core.util.Coordinate;
 
 import info.openrocket.swing.gui.SpinnerEditor;
 import info.openrocket.swing.gui.adaptors.DoubleModel;
@@ -304,7 +303,14 @@ public class FreeformFinSetConfig extends FinSetConfig {
 			@Override
 			public void focusGained(FocusEvent e) {
 				if (table.isEditing()) {
-					table.getCellEditor().stopCellEditing();
+					// Check if the row being edited is still valid before stopping editing
+					int editingRow = table.getEditingRow();
+					if (editingRow >= 0 && editingRow < table.getRowCount()) {
+						table.getCellEditor().stopCellEditing();
+					} else {
+						// Row is out of bounds, cancel editing instead
+						table.getCellEditor().cancelCellEditing();
+					}
 				}
 				table.clearSelection();
 			}
@@ -347,7 +353,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 				
 				JFileChooser chooser = new JFileChooser();
 				chooser.setFileFilter(FileHelper.CSV_FILTER);
-				chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+				chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 
                 if (JFileChooser.APPROVE_OPTION == chooser.showSaveDialog(FreeformFinSetConfig.this)){
                 	File selectedFile= chooser.getSelectedFile();
@@ -357,7 +363,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 					}
 
 				    FreeformFinSetConfig.writeCSVFile(table, selectedFile);
-					((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+					Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 				}
 			}
 		});
@@ -436,7 +442,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 		JFileChooser chooser = new JFileChooser();
 		chooser.setFileFilter(FileHelper.getImageFileFilter());
 		chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-		chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+		chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 		
 		JPanel desc = new JPanel(new MigLayout("fill, ins 0 para 0 para"));
 		desc.add(new DescriptionArea(trans.get("CustomFinImport.description"), 5, 0), "grow, wmin 100lp");
@@ -447,7 +453,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 		if (option == JFileChooser.APPROVE_OPTION) {
 			try {
 				CustomFinImporter importer = new CustomFinImporter();
-				ArrayList<Coordinate> points = importer.getPoints(chooser.getSelectedFile());
+				ArrayList<CoordinateIF> points = importer.getPoints(chooser.getSelectedFile());
 				document.startUndo(trans.get("CustomFinImport.undo"));
 				finset.setPoints( points);
 			} catch (IOException e) {
@@ -456,7 +462,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 						trans.get("CustomFinImport.error.title"), JOptionPane.ERROR_MESSAGE);
 			} finally {
 				document.stopUndo();
-				((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+				Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 			}
 		}	
 	}
@@ -501,9 +507,9 @@ public class FreeformFinSetConfig extends FinSetConfig {
 			return;
 		}
 		final FreeformFinSet finSet = (FreeformFinSet) component;
-		Coordinate currentPoint = finSet.getFinPoints()[currentPointIdx];
-		Coordinate nextPoint = finSet.getFinPoints()[currentPointIdx + 1];
-		Point2D.Double toAdd = new Point2D.Double((currentPoint.x + nextPoint.x) / 2, (currentPoint.y + nextPoint.y) / 2);
+		CoordinateIF currentPoint = finSet.getFinPoints()[currentPointIdx];
+		CoordinateIF nextPoint = finSet.getFinPoints()[currentPointIdx + 1];
+		Point2D.Double toAdd = new Point2D.Double((currentPoint.getX() + nextPoint.getX()) / 2, (currentPoint.getY() + nextPoint.getY()) / 2);
 		finSet.addPoint(currentPointIdx + 1, toAdd);
 	}
 
@@ -515,6 +521,13 @@ public class FreeformFinSetConfig extends FinSetConfig {
 		if (currentPointIdx == -1) {
 			return;
 		}
+		
+		// Cancel any active cell editing before deleting the point
+		// This prevents setValueAt from being called with an invalid row index
+		if (table.isEditing()) {
+			table.getCellEditor().cancelCellEditing();
+		}
+		
 		final FreeformFinSet finSet = (FreeformFinSet) component;
 		try {
 			finSet.removePoint(currentPointIdx);
@@ -535,7 +548,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 		insertFinPointAction.updateEnabledState();
 		deleteFinPointAction.updateEnabledState();
 	}
-	
+
 	private class FinPointScrollPane extends ScaleScrollPane {
 
 		private static final int ANY_MASK = (MouseEvent.ALT_DOWN_MASK | MouseEvent.ALT_GRAPH_DOWN_MASK | MouseEvent.META_DOWN_MASK | MouseEvent.CTRL_DOWN_MASK | MouseEvent.SHIFT_DOWN_MASK);
@@ -634,32 +647,32 @@ public class FreeformFinSetConfig extends FinSetConfig {
 			return (lockIndex == dragIndex + 1) ? dragIndex : lockIndex;
 		}
 
-		private Point2D.Double snapPoint(Point2D.Double point, Coordinate lockPoint) {
+		private Point2D.Double snapPoint(Point2D.Double point, CoordinateIF lockPoint) {
 			Point2D.Double snappedPoint = new Point2D.Double(point.x, point.y);
 
-			double diffX = point.x - lockPoint.x;
-			double diffY = point.y - lockPoint.y;
+			double diffX = point.x - lockPoint.getX();
+			double diffY = point.y - lockPoint.getY();
 			double distanceX = Math.abs(diffX);
 			double distanceY = Math.abs(diffY);
 
 			// Calculate distance to 45 or 135 degree line
 			double a = 1;
 			double b = (Math.signum(diffX) == Math.signum(diffY)) ? -1 : 1;
-			double c = -(a * lockPoint.x + b * lockPoint.y);
+			double c = -(a * lockPoint.getX() + b * lockPoint.getY());
 			double distanceDiag = Math.abs(a * point.x + b * point.y + c) / Math.sqrt(2);
 
 			// Snap to the closest constraint
 			if (distanceX <= distanceY && distanceX <= distanceDiag) {
 				// Snap horizontal
-				snappedPoint.x = lockPoint.x;
+				snappedPoint.x = lockPoint.getX();
 			} else if (distanceY <= distanceX && distanceY <= distanceDiag) {
 				// Snap vertical
-				snappedPoint.y = lockPoint.y;
+				snappedPoint.y = lockPoint.getY();
 			} else {
 				// Snap diagonal (45 degrees)
 				double avgDist = (Math.abs(diffX) + Math.abs(diffY)) / 2;
-				snappedPoint.x = lockPoint.x + Math.signum(diffX) * avgDist;
-				snappedPoint.y = lockPoint.y + Math.signum(diffY) * avgDist;
+				snappedPoint.x = lockPoint.getX() + Math.signum(diffX) * avgDist;
+				snappedPoint.y = lockPoint.getY() + Math.signum(diffY) * avgDist;
 			}
 
 			return snappedPoint;
@@ -716,7 +729,7 @@ public class FreeformFinSetConfig extends FinSetConfig {
 
 			super.mouseReleased(event);
 		}
-		
+
 		@Override
 		public void mouseClicked(MouseEvent event) {
 			int mods = event.getModifiersEx();
@@ -735,47 +748,47 @@ public class FreeformFinSetConfig extends FinSetConfig {
             }
 			super.mouseClicked(event);
         }
-		
+
 		private int getPoint(MouseEvent event) {
 			Point p0 = event.getPoint();
 			Point p1 = this.getViewport().getViewPosition();
 			int x = p0.x + p1.x;
 			int y = p0.y + p1.y;
-			
+
 			return figure.getIndexByPoint(x, y);
 		}
-		
+
 		private int getSegment(MouseEvent event) {
 			Point p0 = event.getPoint();
 			Point p1 = this.getViewport().getViewPosition();
 			int x = p0.x + p1.x;
 			int y = p0.y + p1.y;
-			
+
 			return figure.getSegmentByPoint(x, y);
 		}
-		
+
 		private Point2D.Double getCoordinates(MouseEvent event) {
 			Point p0 = event.getPoint();
 			Point p1 = this.getViewport().getViewPosition();
 			int x = p0.x + p1.x;
 			int y = p0.y + p1.y;
-			
+
 			return figure.convertPoint(x, y);
 		}
-		
+
 	}
-	
-	
+
+
 	private enum Columns {
 		X {
 			@Override
 			public String toString() {
 				return "X / " + UnitGroup.UNITS_LENGTH.getDefaultUnit().toString();
 			}
-			
+
 			@Override
 			public String getValue(FreeformFinSet finset, int row) {
-				return UnitGroup.UNITS_LENGTH.getDefaultUnit().toString(finset.getFinPoints()[row].x);
+				return UnitGroup.UNITS_LENGTH.getDefaultUnit().toString(finset.getFinPoints()[row].getX());
 			}
 		},
 		Y {
@@ -783,54 +796,54 @@ public class FreeformFinSetConfig extends FinSetConfig {
 			public String toString() {
 				return "Y / " + UnitGroup.UNITS_LENGTH.getDefaultUnit().toString();
 			}
-			
+
 			@Override
 			public String getValue(FreeformFinSet finset, int row) {
-				return UnitGroup.UNITS_LENGTH.getDefaultUnit().toString(finset.getFinPoints()[row].y);
+				return UnitGroup.UNITS_LENGTH.getDefaultUnit().toString(finset.getFinPoints()[row].getY());
 			}
 		};
-		
+
 		public abstract String getValue(FreeformFinSet finset, int row);
-		
+
 		@Override
 		public abstract String toString();
-		
+
 		public int getWidth() {
 			return 20;
 		}
 	}
-	
+
 	private class FinPointTableModel extends AbstractTableModel {
 
 		@Override
 		public int getColumnCount() {
 			return Columns.values().length;
 		}
-		
+
 		@Override
 		public int getRowCount() {
-			return ((FreeformFinSet)component).getPointCount(); 
+			return ((FreeformFinSet)component).getPointCount();
 		}
-		
+
 		@Override
 		public Object getValueAt(int rowIndex, int columnIndex) {
 			return Columns.values()[columnIndex].getValue( (FreeformFinSet)component, rowIndex);
 		}
-		
+
 		@Override
 		public String getColumnName(int columnIndex) {
 			return Columns.values()[columnIndex].toString();
 		}
-		
+
 		@Override
 		public boolean isCellEditable(int rowIndex, int columnIndex) {
 			if (rowIndex == 0 || rowIndex == getRowCount() - 1) {
 				return (columnIndex == Columns.X.ordinal());
 			}
-			
+
 			return (columnIndex == Columns.X.ordinal() || columnIndex == Columns.Y.ordinal());
 		}
-		
+
 		@Override
 		public void setValueAt(Object o, int rowIndex, int columnIndex) {
 			if (!(o instanceof String))
@@ -839,22 +852,24 @@ public class FreeformFinSetConfig extends FinSetConfig {
 			final FreeformFinSet finset = (FreeformFinSet)component;
 
 			// bounds check that indices are valid
+			// Return early instead of throwing to handle race conditions when points are deleted
 			if (rowIndex < 0 || rowIndex >= finset.getFinPoints().length || columnIndex < 0 || columnIndex >= Columns.values().length) {
-				throw new IllegalArgumentException("Index out of bounds, row=" + rowIndex + " column=" + columnIndex + " fin point count=" + finset.getFinPoints().length);
+				log.warn("Attempted to set value at invalid index, row=" + rowIndex + " column=" + columnIndex + " fin point count=" + finset.getFinPoints().length);
+				return;
 			}
-			
+
 			String str = (String) o;
 			try {
-				
+
 				double value = UnitGroup.UNITS_LENGTH.fromString(str);
-				Coordinate c = finset.getFinPoints()[rowIndex];
+				CoordinateIF c = finset.getFinPoints()[rowIndex];
 				if (columnIndex == Columns.X.ordinal()){
 					c = c.setX(value);
 				}else{
 					c = c.setY(value);
 				}
-			
-				finset.setPoint(rowIndex, c.x, c.y);
+
+				finset.setPoint(rowIndex, c.getX(), c.getY());
 				
 				updateFields();
 			} catch (NumberFormatException ignore) {

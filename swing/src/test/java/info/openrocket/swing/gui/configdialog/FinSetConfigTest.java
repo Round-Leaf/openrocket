@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import info.openrocket.core.rocketcomponent.TrapezoidFinSet;
-import info.openrocket.swing.gui.components.SVGOptionPanel;
+import info.openrocket.core.file.svg.export.SVGExportOptions;
+import info.openrocket.swing.gui.export.ComponentSvgExportService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -284,13 +285,11 @@ public class FinSetConfigTest extends BaseTestCase {
 
         bodyTube.addChild(finSet);
 
-        SVGOptionPanel options = new SVGOptionPanel();
-        options.setStrokeWidth(0.1);
-        options.setStrokeColor(Color.BLACK);
+        SVGExportOptions options = new SVGExportOptions(Color.BLACK, 0.1);
 
         File destFile = File.createTempFile("test", ".svg");
 
-        FinSetConfig.writeSVGFile(finSet, destFile, options);
+        ComponentSvgExportService.exportFinSet(finSet, destFile, options);
 
         // TODO: load the file and check the contents
     }

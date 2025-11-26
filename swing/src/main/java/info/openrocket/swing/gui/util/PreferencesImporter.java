@@ -26,7 +26,7 @@ public abstract class PreferencesImporter {
     public static boolean importPreferences(Window parent) {
         final JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle(trans.get("PreferencesImporter.chooser.title"));
-        chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+        chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
         chooser.setFileFilter(FileHelper.XML_FILTER);
         chooser.setAcceptAllFileFilterUsed(false);
 
@@ -36,7 +36,7 @@ public abstract class PreferencesImporter {
             return false;
         }
 
-        ((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+        Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 
         File importFile = chooser.getSelectedFile();
         return importPreferences(importFile);

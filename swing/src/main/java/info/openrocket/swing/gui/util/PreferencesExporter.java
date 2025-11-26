@@ -52,7 +52,7 @@ public abstract class PreferencesExporter {
         chooser.setDialogTitle(trans.get("PreferencesExporter.chooser.title"));
         chooser.setAcceptAllFileFilterUsed(false);
         chooser.setFileFilter(FileHelper.XML_FILTER);
-        chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+        chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
         PreferencesOptionPanel options = new PreferencesOptionPanel();
         chooser.setAccessory(options);
 

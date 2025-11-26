@@ -35,6 +35,7 @@
 /swing/bin
 /swing/tmp
 /core/src/main/resources/datafiles/components
+/core/src/main/resources/ReleaseNotes.md
 
 # IntelliJ
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and Webstorm
@@ -79,6 +80,15 @@ lib-test/OpenRocket Library Test.iml
 **/build/
 **/.gradle
 
+# IntelliJ run configurations (keep some default configs though)
+!/.idea/runConfigurations/SwingStartup.xml
+!/.idea/runConfigurations/openrocket_jar.xml
+!/.idea/runConfigurations/openrocket_test.xml
+/.idea/runConfigurations/
+
+# VSCode
+.vscode/
+
 # mpeltonen/sbt-idea plugin
 **/.idea_modules/
 
@@ -98,3 +108,9 @@ openrocket.log
 
 # Sphinx documentation
 docs/build
+
+# AI tools
+**/copilot.*.xml
+**/AGENTS.md
+**/CLAUDE.md
+**/GEMINI.md

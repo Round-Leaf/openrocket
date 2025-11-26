@@ -8,6 +8,13 @@ export XDG_CURRENT_DESKTOP=GNOME
 
 JAVA_OPTS="-Dsun.java2d.xrender=true -Dprism.useFontConfig=false -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true -Dswing.defaultlaf=com.sun.java.swing.plaf.gtk.GTKLookAndFeel -Dswing.crossplatformlaf=com.sun.java.swing.plaf.gtk.GTKLookAndFeel -Djava.io.tmpdir=$SNAP_USER_COMMON"
 
+ARCH="$(uname -m)"
+GC_OPTS=""
+case "$ARCH" in
+  aarch64|x86_64) GC_OPTS="-XX:+UseZGC" ;;   # if you want ZGC on 64-bit
+  *)              GC_OPTS="-XX:+UseG1GC" ;;  # 32-bit fallback
+esac
+
 #
 # Determine if we need to migrate user preferences from a previous
 # installation or not. This will be determined if the dot-java-user-prefs
@@ -16,7 +23,7 @@ JAVA_OPTS="-Dsun.java2d.xrender=true -Dprism.useFontConfig=false -Dawt.useSystem
 # Note, $HOME is remapped within a snap so it is necessary to use
 # SNAP_REAL_HOME instead.
 #
-if snapctl is-connected dot-java-user-prefs-openrocket; then
+if snapctl is-connected dot-java-user-prefs-openrocket 2>/dev/null; then
     SRC_PREFS=$SNAP_REAL_HOME/.java/.userPrefs/OpenRocket
     TGT_PREFS=$SNAP_USER_COMMON/.java/.userPrefs/
     if [[ -d $SRC_PREFS && ! -d "$TGT_PREFS" ]]; then
@@ -34,12 +41,12 @@ fi
 # user prefs dir. So we'll force it to use the snap.
 JAVA_OPTS="$JAVA_OPTS -Djava.util.prefs.userRoot=$SNAP_USER_COMMON/"
 
-if ! snapctl is-connected dot-openrocket; then
+if ! snapctl is-connected dot-openrocket 2>/dev/null; then
     JAVA_OPTS="$JAVA_OPTS -Duser.home=$SNAP_USER_COMMON/"
 fi
 
 export _JAVA_OPTIONS=$JAVA_OPTS
 # Fix font / theme
 export JAVA_FONTS=$SNAP/usr/share/fonts/truetype
-exec $JAVA_BIN -jar $SNAP/OpenRocket.jar "$@"
+exec $JAVA_BIN $GC_OPTS -jar $SNAP/OpenRocket.jar "$@"
 

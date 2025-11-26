@@ -390,7 +390,7 @@ public class PresetEditorDialog extends JDialog implements ItemListener {
 						File file = imageChooser.getSelectedFile();
 						ncImage = scaleImage(new ImageIcon(file.getAbsolutePath()).getImage(), 155);
 						ncImageBtn.setIcon(ncImage);
-						((SwingPreferences) Application.getPreferences()).setDefaultDirectory(imageChooser.getCurrentDirectory());
+						Application.getPreferences().setDefaultDirectory(imageChooser.getCurrentDirectory());
 					}
 				}
 			});
@@ -1320,7 +1320,7 @@ public class PresetEditorDialog extends JDialog implements ItemListener {
 	 */
 	private JFileChooser createImageChooser() {
 		final JFileChooser chooser = new JFileChooser();
-		chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+		chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 		ImagePreviewPanel preview = new ImagePreviewPanel();
 		chooser.setAccessory(preview);
 		chooser.addPropertyChangeListener(preview);

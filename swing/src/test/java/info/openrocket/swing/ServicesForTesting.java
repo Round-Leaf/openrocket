@@ -11,6 +11,7 @@ import info.openrocket.core.material.Material;
 import info.openrocket.core.preferences.ApplicationPreferences;
 import info.openrocket.core.preset.ComponentPreset;
 import info.openrocket.core.preset.ComponentPreset.Type;
+import info.openrocket.swing.gui.util.SwingPreferences;
 
 import java.util.Collections;
 import java.util.Locale;
@@ -59,68 +60,66 @@ public class ServicesForTesting extends AbstractModule {
 
 	}
 
-	public static class PreferencesForTesting extends ApplicationPreferences {
+	public static class PreferencesForTesting extends SwingPreferences {
 
 		private static java.util.prefs.Preferences root = null;
 
 		@Override
 		public boolean getBoolean(String key, boolean defaultValue) {
-			// TODO Auto-generated method stub
-			return false;
+			return getBaseNode().getBoolean(key, defaultValue);
 		}
 
 		@Override
 		public void putBoolean(String key, boolean value) {
-			// TODO Auto-generated method stub
-
+			getBaseNode().putBoolean(key, value);
 		}
 
 		@Override
 		public int getInt(String key, int defaultValue) {
-			// TODO Auto-generated method stub
-			return 0;
+			return getBaseNode().getInt(key, defaultValue);
 		}
 
 		@Override
 		public void putInt(String key, int value) {
-			// TODO Auto-generated method stub
-
+			getBaseNode().putInt(key, value);
 		}
 
 		@Override
 		public double getDouble(String key, double defaultValue) {
-			// TODO Auto-generated method stub
-			return 0;
+			return getBaseNode().getDouble(key, defaultValue);
 		}
 
 		@Override
 		public void putDouble(String key, double value) {
-			// TODO Auto-generated method stub
-
+			getBaseNode().putDouble(key, value);
 		}
 
 		@Override
 		public String getString(String key, String defaultValue) {
-			// TODO Auto-generated method stub
-			return null;
+			return getBaseNode().get(key, defaultValue);
 		}
 
 		@Override
 		public void putString(String key, String value) {
-			// TODO Auto-generated method stub
-
+			if (value == null) {
+				getBaseNode().remove(key);
+			} else {
+				getBaseNode().put(key, value);
+			}
 		}
 
 		@Override
 		public String getString(String directory, String key, String defaultValue) {
-			// TODO Auto-generated method stub
-			return null;
+			return getBaseNode().node(directory).get(key, defaultValue);
 		}
 
 		@Override
 		public void putString(String directory, String key, String value) {
-			// TODO Auto-generated method stub
-
+			if (value == null) {
+				getBaseNode().node(directory).remove(key);
+			} else {
+				getBaseNode().node(directory).put(key, value);
+			}
 		}
 
 		@Override

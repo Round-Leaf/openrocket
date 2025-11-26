@@ -10,14 +10,15 @@ import java.awt.Window;
 import java.util.List;
 
 public class CAPlotDialog extends PlotDialog<CADataType, CADataBranch, CAPlotConfiguration, CAPlot> {
-	private CAPlotDialog(Window parent, String name, CAPlot plot, CAPlotConfiguration config, List<CADataBranch> allBranches, boolean initialShowPoints) {
-		super(parent, name, plot, config, allBranches, initialShowPoints);
+	private CAPlotDialog(Window parent, String name, CAPlot plot, CAPlotConfiguration config, List<CADataBranch> allBranches, boolean initialShowPoints, boolean initialShowEvents) {
+		super(parent, name, plot, config, allBranches, initialShowPoints, initialShowEvents);
 	}
 
 	public static CAPlotDialog create(Window parent, String name, CAPlotConfiguration config, List<CADataBranch> allBranches) {
 		final boolean initialShowPoints = Application.getPreferences().getBoolean(ApplicationPreferences.PLOT_SHOW_POINTS, false);
+        final boolean initialShowEvents = Application.getPreferences().getBoolean(ApplicationPreferences.PLOT_SHOW_EVENTS, true);
 		final CAPlot plot = new CAPlot(name, allBranches.get(0), config, allBranches, initialShowPoints);
 
-		return new CAPlotDialog(parent, name, plot, config, allBranches, initialShowPoints);
+		return new CAPlotDialog(parent, name, plot, config, allBranches, initialShowPoints, initialShowEvents);
 	}
 }

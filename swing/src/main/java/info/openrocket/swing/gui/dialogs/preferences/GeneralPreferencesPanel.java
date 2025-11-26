@@ -127,7 +127,7 @@ public class GeneralPreferencesPanel extends PreferencesPanel {
 			public void actionPerformed(ActionEvent e) {
 				JFileChooser chooser = new JFileChooser();
 				chooser.setAcceptAllFileFilterUsed(false);
-				chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+				chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 				SimpleFileFilter filter =
 						new SimpleFileFilter(
 								//// All thrust curve files (*.eng; *.rse; *.zip; directories)
@@ -156,7 +156,7 @@ public class GeneralPreferencesPanel extends PreferencesPanel {
 					}
 					text += chooser.getSelectedFile().getAbsolutePath();
 					field.setText(text);
-					((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+					Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 				}
 			}
 		});
@@ -222,7 +222,7 @@ public class GeneralPreferencesPanel extends PreferencesPanel {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				JFileChooser chooser = new JFileChooser();
-				chooser.setCurrentDirectory(((SwingPreferences) Application.getPreferences()).getDefaultDirectory());
+				chooser.setCurrentDirectory(Application.getPreferences().getDefaultDirectory());
 				chooser.setAcceptAllFileFilterUsed(false);
 				SimpleFileFilter filter =
 						new SimpleFileFilter(
@@ -245,7 +245,7 @@ public class GeneralPreferencesPanel extends PreferencesPanel {
 					}
 					text += chooser.getSelectedFile().getAbsolutePath();
 					fieldCompPres.setText(text);
-					((SwingPreferences) Application.getPreferences()).setDefaultDirectory(chooser.getCurrentDirectory());
+					Application.getPreferences().setDefaultDirectory(chooser.getCurrentDirectory());
 				}
 			}
 		});
