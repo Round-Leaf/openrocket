@@ -5,6 +5,8 @@ plugins {
     id 'org.javamodularity.moduleplugin' version '1.8.15'
     id 'application'
     id 'jacoco'
+    id "com.github.ManifestClasspath" version "0.1.0-RELEASE"
+    id 'ua.eshepelyuk.ManifestClasspath' version '1.0.0'
 }
 
 // Java settings
@@ -46,7 +48,11 @@ version = buildProperties['build.version']
 jacoco {
     toolVersion = "0.8.11"
 }
-
+tasks.named('test', Test) {
+    // Only include what's necessary to run the tests.
+    // This is often sufficient to remove a small number of unnecessary items.
+    classpath = project.sourceSets.test.runtimeClasspath
+}
 // Common project configuration
 allprojects {
     repositories {
